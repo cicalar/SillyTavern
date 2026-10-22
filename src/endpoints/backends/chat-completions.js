@@ -124,6 +124,16 @@ function getAffinityKey() {
 }
 
 /**
+ * Stable per-chat id for xAI sticky routing, so repeated requests hit the same prompt cache.
+ * @param {import('express').Request} request
+ * @returns {string|undefined}
+ */
+function getGrokConvId(request) {
+    if (!request.body.chat_id) return undefined;
+    return 'st-' + createHmac('sha256', getAffinityKey()).update(String(request.body.chat_id)).digest('hex').slice(0, 32);
+}
+
+/**
  * Cache for cacheable (writing) OpenRouter model IDs.
  * @type {string[]}
  */
@@ -1249,6 +1259,7 @@ async function sendXaiRequest(request, response) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + apiKey,
+                ...(getGrokConvId(request) && { 'x-grok-conv-id': getGrokConvId(request) }),
             },
             body: JSON.stringify(requestBody),
             signal: controller.signal,
@@ -2394,7 +2405,8 @@ router.post('/generate', async function (request, response) {
         } else if (request.body.chat_completion_source === CHAT_COMPLETION_SOURCES.CUSTOM) {
             apiUrl = request.body.custom_url;
             apiKey = readSecret(request.user.directories, SECRET_KEYS.CUSTOM, request.body.secret_id);
-            headers = {};
+            const grokConvId = getGrokConvId(request);
+            headers = grokConvId ? { 'x-grok-conv-id': grokConvId } : {};
             bodyParams = {
                 logprobs: request.body.logprobs,
                 top_logprobs: undefined,

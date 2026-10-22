@@ -2898,7 +2898,7 @@ export async function createGenerationParameters(settings, model, type, messages
         generate_data.nanogpt_payg_override = settings.nanogpt_payg_override;
     }
 
-    if (settings.chat_completion_source === chat_completion_sources.FIREWORKS && type !== 'quiet') {
+    if ([chat_completion_sources.FIREWORKS, chat_completion_sources.XAI, chat_completion_sources.CUSTOM].includes(settings.chat_completion_source) && type !== 'quiet') {
         generate_data.chat_id = getCurrentChatId();
     }
 
